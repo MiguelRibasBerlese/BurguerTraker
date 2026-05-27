@@ -1,4 +1,4 @@
-// Sidebar — histórico de vencedores + botão novo funcionário
+// Sidebar — histórico de vencedores + botão novo funcionário + reset de dados
 
 const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -7,7 +7,7 @@ function formatMonth(monthStr) {
   return `${MESES_PT[parseInt(month) - 1]}/${year}`;
 }
 
-export default function Sidebar({ history, onAddMember, isOpen, onClose }) {
+export default function Sidebar({ history, onAddMember, onReset, isOpen, onClose }) {
   return (
     <>
       <style>{`
@@ -92,18 +92,17 @@ export default function Sidebar({ history, onAddMember, isOpen, onClose }) {
                   </span>
                 </div>
                 <div style={{
-                  display: 'flex', justifyContent: 'space-between',
                   marginTop: 4, fontSize: 12, color: 'var(--text-muted)',
+                  textAlign: 'right',
                 }}>
-                  <span>⚡ {entry.clicks} cliques</span>
-                  <span>{formatMonth(entry.month)}</span>
+                  {formatMonth(entry.month)}
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Botão novo funcionário */}
+        {/* Rodapé — novo funcionário + reset */}
         <div style={{ padding: 16, borderTop: '1px solid var(--roxo-border)', flexShrink: 0 }}>
           <button
             onClick={onAddMember}
@@ -112,11 +111,30 @@ export default function Sidebar({ history, onAddMember, isOpen, onClose }) {
               background: 'var(--roxo-bg)', border: '1px solid var(--roxo-border)',
               borderRadius: 12, color: 'var(--roxo-light)', fontWeight: 600,
               fontSize: 14, letterSpacing: 1, cursor: 'pointer', transition: 'all 0.2s',
+              marginBottom: 8,
             }}
             onMouseEnter={e => Object.assign(e.currentTarget.style, { background: 'var(--roxo)', color: '#fff' })}
             onMouseLeave={e => Object.assign(e.currentTarget.style, { background: 'var(--roxo-bg)', color: 'var(--roxo-light)' })}
           >
             ➕ NOVO FUNCIONÁRIO
+          </button>
+
+          <button
+            onClick={() => {
+              if (window.confirm('Resetar histórico de sorteios e desbloquear todos? (útil para testes)')) {
+                onReset();
+              }
+            }}
+            style={{
+              width: '100%', padding: '8px 0',
+              background: 'transparent', border: '1px solid rgba(255,61,61,0.2)',
+              borderRadius: 10, color: 'rgba(255,107,107,0.6)',
+              fontSize: 12, letterSpacing: 1, cursor: 'pointer', transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => Object.assign(e.currentTarget.style, { borderColor: 'rgba(255,61,61,0.5)', color: '#ff6b6b' })}
+            onMouseLeave={e => Object.assign(e.currentTarget.style, { borderColor: 'rgba(255,61,61,0.2)', color: 'rgba(255,107,107,0.6)' })}
+          >
+            🔄 Resetar Dados
           </button>
         </div>
       </aside>

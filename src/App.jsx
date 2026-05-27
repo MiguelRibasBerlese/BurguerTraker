@@ -104,9 +104,14 @@ export default function App() {
     setShowAdd(false);
   };
 
+  const onReset = () => {
+    setHistory([]);
+    setMembers(prev => prev.map(m => ({ ...m, wonLastMonth: false })));
+  };
+
   const onGameOver = (winner) => {
     const mes = new Date().toISOString().slice(0, 7);
-    setHistory(prev => [{ name: winner.name, clicks: winner.clicks, month: mes }, ...prev]);
+    setHistory(prev => [{ name: winner.name, month: mes }, ...prev]);
     setMembers(prev => prev.map(m => ({
       ...m,
       burgers: m.id === winner.id ? m.burgers + 1 : m.burgers,
@@ -134,6 +139,7 @@ export default function App() {
       <Sidebar
         history={history}
         onAddMember={() => setShowAdd(true)}
+        onReset={onReset}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

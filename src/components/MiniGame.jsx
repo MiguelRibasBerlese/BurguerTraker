@@ -1,253 +1,212 @@
-// MiniGame — o jogo do burger extra (countdown + 5s de cliques + resultado)
+// MiniGame — sorteio automático do burger extra com efeito de roleta
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 
-const HYPE_MSGS = [
-  'TOCA O TERROR NO BOTÃO! 🔥',
-  'APERTA APERTA APERTA!!! 💀',
-  'VEM COM TUDO! ⚡',
-  'METE O DEDO LOGO! 🖕',
-  'SEUS DEDOS PEGAM FOGO?? 🔥',
-  'MAIS RÁPIDO!! MAIS RÁPIDO!! 💨',
-  'VAI QUE É TUA!! 👊',
-  'CLICA FILHÃO!! 🎯',
-  'NÃO DEIXA ELE GANHAR!! 😤',
-  'VAI BORA QUE O TEMPO TÁ ACABANDO! ⏰',
-];
+// Velocidade das trocas de nome na roleta (ms por frame, acelerando → desacelerando)
+const SPIN_INTERVALS = [70, 70, 80, 90, 100, 120, 150, 190, 240, 310, 400, 520, 680, 900, 1100];
+
+const HYPE_SPIN = ['🔥 GIRANDO...', '⚡ QUEM VAI SER?!', '💀 TÁ QUASE...', '🎰 SORTEANDO...', '🤯 SUSPENSE!!'];
+const HYPE_WIN  = ['PARABÉNS SORTUDO!!', 'O DESTINO ESCOLHEU!!', 'ERA ESCRITO!!', 'MERECEU DEMAIS!!'];
 
 export default function MiniGame({ players, onGameOver, onClose }) {
-  const [phase, setPhase] = useState('countdown'); // countdown | playing | result
-  const [countdown, setCountdown] = useState(3);
-  const [timeLeft, setTimeLeft] = useState(5);
-  const [clicks, setClicks] = useState(() => Object.fromEntries(players.map(p => [p.id, 0])));
-  const [hypeMsg, setHypeMsg] = useState(HYPE_MSGS[0]);
-  const [winner, setWinner] = useState(null);
-  const timerRef = useRef(null);
-  const hypeRef = useRef(null);
+  const [phase, setPhase]     = useState('ready');   // ready | spinning | result
+  const [current, setCurrent] = useState(players[0]);
+  const [winner, setWinner]   = useState(null);
+  const [hype, setHype]       = useState('');
+  const frameRef = useRef(0);
+  const hypeRef  = useRef(null);
 
-  // Fase countdown: 3 → 2 → 1 → começa
-  useEffect(() => {
-    if (phase !== 'countdown') return;
-    if (countdown === 0) {
-      setPhase('playing');
-      return;
-    }
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, countdown]);
+  const startSpin = useCallback(() => {
+    if (players.length === 0) return;
 
-  // Fase playing: timer de 5 segundos
-  useEffect(() => {
-    if (phase !== 'playing') return;
+    // Escolhe o vencedor antes de começar a animação
+    const chosen = players[Math.floor(Math.random() * players.length)];
+    setPhase('spinning');
 
-    // Troca mensagem de hype a cada segundo
+    // Troca mensagem de hype durante a roleta
+    let hi = 0;
+    setHype(HYPE_SPIN[0]);
     hypeRef.current = setInterval(() => {
-      setHypeMsg(HYPE_MSGS[Math.floor(Math.random() * HYPE_MSGS.length)]);
-    }, 800);
+      hi = (hi + 1) % HYPE_SPIN.length;
+      setHype(HYPE_SPIN[hi]);
+    }, 600);
 
-    timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) {
-          clearInterval(timerRef.current);
-          clearInterval(hypeRef.current);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
+    // Anima os nomes ciclando, depois para no vencedor
+    let idx = 0;
+    const tick = (frameIdx) => {
+      idx = (idx + 1) % players.length;
+      setCurrent(players[idx]);
 
-    return () => {
-      clearInterval(timerRef.current);
-      clearInterval(hypeRef.current);
+      if (frameIdx < SPIN_INTERVALS.length - 1) {
+        setTimeout(() => tick(frameIdx + 1), SPIN_INTERVALS[frameIdx + 1]);
+      } else {
+        // Fim: mostra o vencedor
+        clearInterval(hypeRef.current);
+        setCurrent(chosen);
+        setWinner(chosen);
+        setPhase('result');
+      }
     };
-  }, [phase]);
 
-  // Quando timer zera, calcula vencedor
-  useEffect(() => {
-    if (phase !== 'playing' || timeLeft > 0) return;
-    const winner = players.reduce((best, p) =>
-      (clicks[p.id] || 0) > (clicks[best.id] || 0) ? p : best
-    , players[0]);
-    setWinner({ ...winner, clicks: clicks[winner.id] || 0 });
-    setPhase('result');
-  }, [timeLeft, phase, players, clicks]);
+    setTimeout(() => tick(0), SPIN_INTERVALS[0]);
+  }, [players]);
 
-  const handleClick = useCallback((playerId) => {
-    if (phase !== 'playing') return;
-    setClicks(prev => ({ ...prev, [playerId]: (prev[playerId] || 0) + 1 }));
-  }, [phase]);
-
-  const handleConfirm = () => {
-    onGameOver(winner);
-  };
+  const handleConfirm = () => onGameOver(winner);
 
   return (
     <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 700, textAlign: 'center' }}>
+      <div className="modal-box" style={{ maxWidth: 520, textAlign: 'center' }}>
 
-        {/* COUNTDOWN */}
-        {phase === 'countdown' && (
+        {/* READY — botão único para iniciar o sorteio */}
+        {phase === 'ready' && (
           <div>
-            <div style={{
-              fontFamily: "'Bangers', cursive",
-              fontSize: 20, letterSpacing: 4,
-              color: 'var(--text-muted)', marginBottom: 20,
-            }}>
-              PREPARA OS DEDOS...
+            <div style={{ fontSize: 56, marginBottom: 12, animation: 'pulse 1s ease infinite' }}>
+              🎰
             </div>
             <div style={{
               fontFamily: "'Bangers', cursive",
-              fontSize: countdown === 0 ? 140 : 120,
-              color: countdown === 0 ? 'var(--verde)' : 'var(--roxo-light)',
-              lineHeight: 1,
-              animation: 'countPulse 0.4s ease',
-              key: countdown,
-            }}>
-              {countdown === 0 ? 'JÁ!!' : countdown}
-            </div>
-            <div style={{ fontSize: 32, marginTop: 16 }}>🍔🎰🍔</div>
-          </div>
-        )}
-
-        {/* PLAYING */}
-        {phase === 'playing' && (
-          <div>
-            <div style={{
-              fontFamily: "'Bangers', cursive",
-              fontSize: 80, lineHeight: 1,
-              color: timeLeft <= 2 ? 'var(--vermelho)' : 'var(--roxo-light)',
-              animation: 'countPulse 0.5s ease infinite',
-              marginBottom: 4,
-            }}>
-              {timeLeft}s
-            </div>
-
-            <div style={{
-              fontFamily: "'Bangers', cursive",
-              fontSize: 22, letterSpacing: 3,
-              color: 'var(--text-muted)', marginBottom: 20,
-              minHeight: 36,
-            }}>
-              {hypeMsg}
-            </div>
-
-            <div style={{
-              display: 'flex', flexWrap: 'wrap',
-              gap: 16, justifyContent: 'center',
-            }}>
-              {players.map(p => (
-                <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                  <button
-                    style={{
-                      width: 130, height: 130, borderRadius: 24,
-                      background: `linear-gradient(135deg, var(--roxo-dark), var(--roxo))`,
-                      border: '3px solid var(--roxo-light)',
-                      color: 'white', cursor: 'pointer',
-                      fontFamily: "'Bangers', cursive",
-                      fontSize: 18, letterSpacing: 2,
-                      transition: 'transform 0.05s',
-                      userSelect: 'none', WebkitUserSelect: 'none',
-                      boxShadow: '0 0 20px var(--roxo-glow)',
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center', gap: 4,
-                    }}
-                    onPointerDown={e => {
-                      e.currentTarget.style.transform = 'scale(0.92)';
-                      handleClick(p.id);
-                    }}
-                    onPointerUp={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-                  >
-                    <span style={{ fontSize: 28 }}>🍔</span>
-                    <span>{p.name.toUpperCase()}</span>
-                  </button>
-                  <div style={{
-                    fontFamily: "'Bangers', cursive",
-                    fontSize: 28, color: 'var(--roxo-light)', letterSpacing: 2,
-                  }}>
-                    {clicks[p.id] || 0}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* RESULT */}
-        {phase === 'result' && winner && (
-          <div>
-            <div style={{ fontSize: 60, marginBottom: 8 }}>🎉👑🎉</div>
-            <div style={{
-              fontFamily: "'Bangers', cursive",
-              fontSize: 52, letterSpacing: 4,
+              fontSize: 34, letterSpacing: 4,
               background: 'linear-gradient(135deg, var(--roxo-light), #fff)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              marginBottom: 4,
+              marginBottom: 8,
             }}>
-              {winner.name.toUpperCase()} GANHOU!!
+              SORTEIO DO BURGER EXTRA
             </div>
-            <div style={{
-              fontSize: 16, color: 'var(--text-muted)', marginBottom: 20,
-            }}>
-              🍔 O burger extra vai pro gostoso com <strong style={{ color: 'var(--roxo-light)' }}>
-                {winner.clicks} cliques
-              </strong>!
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 28, lineHeight: 1.6 }}>
+              {players.length} participante{players.length !== 1 ? 's' : ''} disputando o burger extra.<br />
+              O destino vai decidir quem leva!
             </div>
 
-            {/* Placar final */}
-            <div style={{ marginBottom: 24 }}>
-              {players
-                .map(p => ({ ...p, c: clicks[p.id] || 0 }))
-                .sort((a, b) => b.c - a.c)
-                .map((p, i) => (
-                  <div key={p.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '8px 16px', margin: '4px 0',
-                    background: p.id === winner.id ? 'var(--roxo-bg)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${p.id === winner.id ? 'var(--roxo-border)' : 'transparent'}`,
-                    borderRadius: 10,
-                  }}>
-                    <span style={{ fontFamily: "'Bangers', cursive", fontSize: 22, width: 30 }}>
-                      {i === 0 ? '👑' : `#${i + 1}`}
-                    </span>
-                    <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>{p.name}</span>
-                    <span style={{
-                      fontFamily: "'Bangers', cursive", fontSize: 22,
-                      color: p.id === winner.id ? 'var(--roxo-light)' : 'var(--text-muted)',
-                    }}>
-                      {p.c} cliques
-                    </span>
-                  </div>
-                ))
-              }
+            {/* Lista de participantes */}
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: 8,
+              justifyContent: 'center', marginBottom: 32,
+            }}>
+              {players.map(p => (
+                <span key={p.id} style={{
+                  background: 'var(--roxo-bg)', border: '1px solid var(--roxo-border)',
+                  borderRadius: 8, padding: '6px 14px',
+                  color: 'var(--roxo-light)', fontWeight: 600, fontSize: 15,
+                }}>
+                  {p.name}
+                </span>
+              ))}
+            </div>
+
+            <button
+              onClick={startSpin}
+              style={{
+                width: '100%', padding: '20px 0',
+                background: 'linear-gradient(135deg, var(--roxo-dark), var(--roxo), var(--roxo-light))',
+                border: 'none', borderRadius: 14, color: 'white',
+                fontFamily: "'Bangers', cursive",
+                fontSize: 28, letterSpacing: 4,
+                cursor: 'pointer',
+                animation: 'glowPulse 2s ease infinite',
+                transition: 'transform 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              🎰 SORTEAR O VENCEDOR!
+            </button>
+
+            <button
+              onClick={onClose}
+              style={{
+                marginTop: 12, background: 'none',
+                border: '1px solid var(--roxo-border)', borderRadius: 10,
+                color: 'var(--text-muted)', padding: '8px 20px',
+                cursor: 'pointer', width: '100%', fontSize: 14,
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {/* SPINNING — roleta girando */}
+        {phase === 'spinning' && (
+          <div>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>🎰</div>
+
+            <div style={{
+              fontFamily: "'Bangers', cursive",
+              fontSize: 16, letterSpacing: 4,
+              color: 'var(--text-muted)', marginBottom: 12,
+            }}>
+              {hype}
+            </div>
+
+            {/* Nome girando */}
+            <div style={{
+              background: 'var(--roxo-bg)', border: '2px solid var(--roxo-border)',
+              borderRadius: 16, padding: '28px 32px', marginBottom: 12,
+              boxShadow: '0 0 40px var(--roxo-glow)',
+            }}>
+              <div style={{
+                fontFamily: "'Bangers', cursive",
+                fontSize: 52, letterSpacing: 4,
+                color: 'var(--roxo-light)',
+                animation: 'countPulse 0.2s ease infinite',
+                lineHeight: 1,
+              }}>
+                {current?.name?.toUpperCase() || '???'}
+              </div>
+            </div>
+
+            <div style={{ fontSize: 28, animation: 'spin 0.4s linear infinite' }}>⚡</div>
+
+            <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+          </div>
+        )}
+
+        {/* RESULT — vencedor revelado */}
+        {phase === 'result' && winner && (
+          <div>
+            <div style={{ fontSize: 64, marginBottom: 8 }}>🎉👑🎉</div>
+
+            <div style={{
+              fontFamily: "'Bangers', cursive",
+              fontSize: 18, letterSpacing: 4,
+              color: 'var(--text-muted)', marginBottom: 4,
+            }}>
+              {HYPE_WIN[Math.floor(Math.random() * HYPE_WIN.length)]}
+            </div>
+
+            <div style={{
+              fontFamily: "'Bangers', cursive",
+              fontSize: 56, letterSpacing: 4,
+              background: 'linear-gradient(135deg, var(--roxo-light), #fff)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              marginBottom: 8, lineHeight: 1,
+            }}>
+              {winner.name.toUpperCase()}
+            </div>
+
+            <div style={{
+              fontSize: 16, color: 'var(--text-muted)', marginBottom: 28, lineHeight: 1.7,
+            }}>
+              🍔 O burger extra vai pro sortudo!<br />
+              <span style={{ color: '#ff6b6b', fontSize: 13 }}>
+                ⚠️ {winner.name} não participa no mês que vem.
+              </span>
             </div>
 
             <button
               onClick={handleConfirm}
               style={{
-                fontFamily: "'Bangers', cursive",
-                fontSize: 22, letterSpacing: 3, padding: '14px 40px',
+                width: '100%', padding: '16px 0',
                 background: 'linear-gradient(135deg, var(--roxo-dark), var(--roxo-light))',
                 border: 'none', borderRadius: 12, color: 'white',
-                cursor: 'pointer', width: '100%',
+                fontFamily: "'Bangers', cursive",
+                fontSize: 24, letterSpacing: 3, cursor: 'pointer',
                 animation: 'glowPulse 2s infinite',
               }}
             >
-              🍔 CONFIRMAR VENCEDOR 🍔
+              🍔 CONFIRMAR {winner.name.toUpperCase()} COMO VENCEDOR!
             </button>
           </div>
-        )}
-
-        {phase !== 'result' && phase !== 'playing' && (
-          <button
-            onClick={onClose}
-            style={{
-              marginTop: 20, background: 'none',
-              border: '1px solid var(--roxo-border)', borderRadius: 10,
-              color: 'var(--text-muted)', padding: '8px 20px', cursor: 'pointer',
-            }}
-          >
-            Cancelar
-          </button>
         )}
       </div>
     </div>

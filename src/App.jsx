@@ -5,7 +5,6 @@ import StatsBar from './components/StatsBar'
 import ProgressBar from './components/ProgressBar'
 import MemberGrid from './components/MemberGrid'
 import MiniGame from './components/MiniGame'
-import RulesPopup from './components/RulesPopup'
 import AddMemberModal from './components/AddMemberModal'
 import MonthWarning from './components/MonthWarning'
 import Confetti from './components/Confetti'
@@ -44,7 +43,6 @@ export default function App() {
     JSON.parse(localStorage.getItem('burger_winners_history') || '[]')
   );
   const [showAdd, setShowAdd] = useState(false);
-  const [showRules, setShowRules] = useState(false);
   const [showGame, setShowGame] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -173,7 +171,7 @@ export default function App() {
         {extra > 0 && (
           <button
             className="btn-game"
-            onClick={() => setShowRules(true)}
+            onClick={() => setShowGame(true)}
             aria-label="Disputar o burger extra"
           >
             🎰 DISPUTAR O BURGER EXTRA 🎰
@@ -195,18 +193,11 @@ export default function App() {
 
       {showAdd && <AddMemberModal onAdd={addMember} onClose={() => setShowAdd(false)} />}
 
-      {showRules && (
-        <RulesPopup
-          members={members}
-          eligiblePlayers={eligiblePlayers}
-          onStart={() => { setShowRules(false); setShowGame(true); }}
-          onCancel={() => setShowRules(false)}
-        />
-      )}
-
       {showGame && (
         <MiniGame
           players={eligiblePlayers}
+          members={members}
+          history={history}
           onGameOver={onGameOver}
           onClose={() => setShowGame(false)}
         />

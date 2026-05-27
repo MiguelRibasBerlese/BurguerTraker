@@ -29,7 +29,7 @@ function initState() {
 
   // Reseta contadores na virada de mês
   if (mesAnterior && mesAnterior !== mesAtual) {
-    members = members.map(m => ({ ...m, burgers: 0, wonLastMonth: false }));
+    members = members.map(m => ({ ...m, burgers: 0, wonLastMonth: false, wonExtra: false }));
   }
 
   localStorage.setItem('burger_last_month', mesAtual);
@@ -82,9 +82,10 @@ export default function App() {
   }, []);
 
   const addBurger = (id) => {
-    setMembers(prev => prev.map(m =>
-      m.id === id && m.burgers < perPerson ? { ...m, burgers: m.burgers + 1 } : m
-    ));
+    setMembers(prev => prev.map(m => {
+      const limit = m.wonExtra ? perPerson + 1 : perPerson;
+      return m.id === id && m.burgers < limit ? { ...m, burgers: m.burgers + 1 } : m;
+    }));
     setConfetti(true);
     setTimeout(() => setConfetti(false), 2500);
   };
@@ -106,16 +107,17 @@ export default function App() {
 
   const onReset = () => {
     setHistory([]);
-    setMembers(prev => prev.map(m => ({ ...m, wonLastMonth: false })));
+    setMembers(prev => prev.map(m => ({ ...m, wonLastMonth: false, wonExtra: false })));
   };
 
   const onGameOver = (winner) => {
     const mes = new Date().toISOString().slice(0, 7);
     setHistory(prev => [{ name: winner.name, month: mes }, ...prev]);
+    // Vencedor ganha limite de 3 burgers (perPerson + 1) mas não recebe automaticamente
     setMembers(prev => prev.map(m => ({
       ...m,
-      burgers: m.id === winner.id ? m.burgers + 1 : m.burgers,
-      wonLastMonth: m.id === winner.id
+      wonExtra: m.id === winner.id,
+      wonLastMonth: m.id === winner.id,
     })));
     setShowGame(false);
   };

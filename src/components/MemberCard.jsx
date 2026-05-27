@@ -9,7 +9,9 @@ let emojiCounter = 0;
 export default function MemberCard({ member, perPerson, delay, onAdd, onRemove, onDelete }) {
   const [shaking, setShaking] = useState(false);
   const [floaters, setFloaters] = useState([]);
-  const maxed = member.burgers >= perPerson;
+  // Vencedor do sorteio tem limite de perPerson + 1 (ex: 3 ao invés de 2)
+  const limit = member.wonExtra ? perPerson + 1 : perPerson;
+  const maxed = member.burgers >= limit;
 
   const handleAdd = useCallback(() => {
     if (maxed) return;
@@ -27,7 +29,7 @@ export default function MemberCard({ member, perPerson, delay, onAdd, onRemove, 
     setTimeout(() => setFloaters(prev => prev.filter(f => f.id !== id)), 1100);
   }, [maxed, onAdd]);
 
-  const pct = perPerson > 0 ? (member.burgers / perPerson) * 100 : 0;
+  const pct = limit > 0 ? (member.burgers / limit) * 100 : 0;
 
   return (
     <>
@@ -63,13 +65,25 @@ export default function MemberCard({ member, perPerson, delay, onAdd, onRemove, 
           }}>{f.emoji}</span>
         ))}
 
-        {/* Badge bloqueado */}
-        {member.wonLastMonth && (
+        {/* Badge vencedor do sorteio (pode comer 3) */}
+        {member.wonExtra && (
           <div style={{
             position: 'absolute', top: 8, right: 8,
-            background: 'rgba(255,61,61,0.2)', border: '1px solid rgba(255,61,61,0.4)',
-            borderRadius: 6, padding: '2px 6px',
-            fontSize: 10, letterSpacing: 1, color: '#ff3d3d',
+            background: 'var(--roxo-bg)', border: '1px solid var(--roxo-border)',
+            borderRadius: 6, padding: '2px 8px',
+            fontSize: 10, letterSpacing: 1, color: 'var(--roxo-light)',
+          }}>
+            🎰 +1 BURGER
+          </div>
+        )}
+
+        {/* Badge bloqueado no mês seguinte */}
+        {member.wonLastMonth && !member.wonExtra && (
+          <div style={{
+            position: 'absolute', top: 8, right: 8,
+            background: 'rgba(255,61,61,0.15)', border: '1px solid rgba(255,61,61,0.3)',
+            borderRadius: 6, padding: '2px 8px',
+            fontSize: 10, letterSpacing: 1, color: '#ff6b6b',
           }}>
             👑 CAMPEÃO
           </div>
@@ -87,7 +101,7 @@ export default function MemberCard({ member, perPerson, delay, onAdd, onRemove, 
 
         {/* Emojis de burgers comidos */}
         <div style={{ fontSize: 20, marginBottom: 8, minHeight: 28 }}>
-          {Array.from({ length: perPerson }).map((_, i) => (
+          {Array.from({ length: limit }).map((_, i) => (
             <span
               key={i}
               style={{
@@ -109,7 +123,7 @@ export default function MemberCard({ member, perPerson, delay, onAdd, onRemove, 
         }}>
           <span style={{ color: maxed ? 'var(--verde)' : 'var(--roxo-light)', fontSize: 28 }}>
             {member.burgers}
-          </span>/{perPerson}
+          </span>/{limit}
           {maxed && <span style={{ marginLeft: 8 }}>✅</span>}
         </div>
 
